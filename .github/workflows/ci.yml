@@ -1,0 +1,109 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install black ruff mypy pytest
+    
+    - name: Run black
+      run: black --check src/ tests/ scripts/ demo/
+    
+    - name: Run ruff
+      run: ruff check src/ tests/ scripts/ demo/
+    
+    - name: Run mypy
+      run: mypy src/ --ignore-missing-imports
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --cov=src/ood_detection --cov-report=xml
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+
+  demo-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Test demo imports
+      run: |
+        python -c "
+        import sys
+        sys.path.append('src')
+        from ood_detection.data import load_iris_dataset
+        from ood_detection.methods import MahalanobisOODDetector
+        from ood_detection.eval import evaluate_ood_detection
+        print('✅ All imports successful')
+        "
+    
+    - name: Run basic OOD detection test
+      run: |
+        python -c "
+        import sys
+        sys.path.append('src')
+        from ood_detection.data import load_iris_dataset
+        from ood_detection.methods import MahalanobisOODDetector
+        from ood_detection.eval import evaluate_ood_detection
+        
+        # Load data
+        X_train, X_test, y_train, y_test, X_ood = load_iris_dataset(test_size=0.3, ood_size=50)
+        
+        # Train detector
+        detector = MahalanobisOODDetector()
+        detector.fit(X_train, y_train)
+        
+        # Evaluate
+        in_dist_scores = detector.score_samples(X_test)
+        ood_scores = detector.score_samples(X_ood)
+        metrics = evaluate_ood_detection(in_dist_scores, ood_scores)
+        
+        print(f'✅ OOD detection test completed. AUROC: {metrics[\"auroc\"]:.3f}')
+        assert metrics['auroc'] > 0.5, 'AUROC should be better than random'
+        "

@@ -1,0 +1,115 @@
+# Default configuration for OOD detection experiments
+
+# Random seed for reproducibility
+seed: 42
+
+# Dataset configuration
+dataset:
+  name: iris  # Options: iris, synthetic
+  params:
+    test_size: 0.3
+    ood_size: 100
+    random_state: 42
+    # Additional parameters for synthetic dataset
+    n_samples: 1000
+    n_features: 4
+    n_classes: 3
+
+# OOD detection methods
+methods:
+  mahalanobis:
+    enabled: true
+    params:
+      regularization: 1e-6
+  
+  energy:
+    enabled: true
+    params:
+      hidden_layer_sizes: [100, 50]
+      learning_rate: 0.001
+      max_iter: 1000
+      temperature: 1.0
+  
+  # Future methods can be added here
+  # uncertainty:
+  #   enabled: false
+  #   params:
+  #     method: mc_dropout
+  #     n_samples: 100
+
+# Evaluation configuration
+evaluation:
+  metrics:
+    - auroc
+    - auprc
+    - fpr_at_95_tpr
+    - detection_error
+  
+  # Calibration evaluation
+  calibration:
+    enabled: true
+    num_bins: 10
+  
+  # Robustness evaluation
+  robustness:
+    enabled: false
+    adversarial_methods:
+      - fgsm
+      - pgd
+    epsilon_values: [0.01, 0.05, 0.1]
+
+# Visualization configuration
+visualization:
+  figsize: [10, 6]
+  dpi: 300
+  style: seaborn
+  color_palette: default
+  
+  plots:
+    score_distribution: true
+    roc_curve: true
+    precision_recall_curve: true
+    calibration_diagram: true
+    method_comparison: true
+
+# Output configuration
+output:
+  save_models: true
+  save_predictions: true
+  save_plots: true
+  save_metrics: true
+  
+  # Directory structure
+  base_dir: experiments
+  subdirs:
+    models: models
+    plots: plots
+    metrics: metrics
+    logs: logs
+
+# Logging configuration
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: experiment.log
+  
+  # Track specific metrics
+  track_metrics:
+    - auroc
+    - auprc
+    - training_time
+    - inference_time
+
+# Device configuration
+device:
+  # Options: auto, cuda, mps, cpu
+  type: auto
+  
+  # CUDA specific settings
+  cuda:
+    device_id: 0
+    allow_tf32: true
+  
+  # MPS specific settings (Apple Silicon)
+  mps:
+    fallback_to_cpu: true
